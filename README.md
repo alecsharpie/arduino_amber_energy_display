@@ -106,6 +106,23 @@ pio device monitor
 pio test -e native
 ```
 
+### Dev mode output
+
+Dev mode (`pio run -e dev -t upload`) prints timestamped diagnostics to the serial monitor:
+
+```
+[00:00:05] DEV_MODE active — fetching every 60s
+[00:00:22] Fetching...
+[API] OK: 27.7858c/kWh ($0.277858)  Renewables: 16.3%
+[00:00:25] [COLOR] $0.277858 (27.7858c) -> R=255 G=150 B=0 bright=30 spd=1.00
+[00:00:30] [PERF] work=2096us  frame=15ms  cpu=13%
+[00:00:40] [PERF] work=2040us  frame=15ms  cpu=13%
+```
+
+- **[API]** — fetch results or errors
+- **[COLOR]** — which price band was selected and the RGB values sent to the strip
+- **[PERF]** — CPU utilisation (work time vs frame time, printed every 10s)
+
 ### Testing the colours
 
 To visually validate that each price band shows the right colour on the LED strip:

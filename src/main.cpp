@@ -113,6 +113,13 @@ void setup() {
 }
 
 void loop() {
+  #ifdef DEV_MODE
+    // Measure how long the loop body takes (excluding the delay at the end).
+    // This tells us CPU utilization: e.g. if work takes 1500us out of a 15000us
+    // frame (15ms delay), that's 10% CPU. The rest is idle time.
+    unsigned long loopStartMicros = micros();
+  #endif
+
   // Throttled WiFi check
   if (millis() - lastWifiCheck > 5000) {
     lastWifiCheck = millis();
@@ -190,7 +197,7 @@ void loop() {
   }
 
   // Don't update displays until we have price data (LEDs stay off)
-  if (!hasPriceData()) { delay(30); return; }
+  if (!hasPriceData()) { delay(15); return; }
 
   #ifdef USE_LAVA_LAMP
     lavaLampUpdate(getPrice());
@@ -232,5 +239,23 @@ void loop() {
   #endif
   #endif
 
-  delay(30);
+  #ifdef DEV_MODE
+    // Print CPU usage every 5 seconds so we can see how much headroom we have.
+    // "work_us" = time spent doing actual computation this frame.
+    // "frame_ms" = total frame time (work + delay). Should be ~15ms.
+    // "cpu%" = percentage of the frame spent working (lower = more idle headroom).
+    static unsigned long lastPerfPrint = 0;
+    unsigned long workMicros = micros() - loopStartMicros;
+    if (millis() - lastPerfPrint > 10000) {
+      lastPerfPrint = millis();
+      printTimestamp();
+      Serial.print("[PERF] work=");
+      Serial.print(workMicros);
+      Serial.print("us  frame=15ms  cpu=");
+      Serial.print((workMicros * 100) / 15000);  // integer percentage
+      Serial.println("%");
+    }
+  #endif
+
+  delay(15);
 }
