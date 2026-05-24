@@ -30,8 +30,9 @@ void matrixSunBegin() {
 }
 
 int matrixSunUpdate() {
+  if (currentStage == targetStage) return currentStage;
   if (currentStage < targetStage) currentStage++;
-  else if (currentStage > targetStage) currentStage--;
+  else currentStage--;
   drawSun(currentStage);
   return currentStage;
 }

@@ -28,6 +28,10 @@ void matrixDigitsBegin() {
 }
 
 void matrixDrawPrice(float price) {
+  static float lastPrice = -1.0;
+  if (price == lastPrice) return;
+  lastPrice = price;
+
   byte frame[8][12] = { 0 };
   price = round(price * 100.0) / 100.0;
   if (price > 9.99) price = 9.99;
@@ -45,6 +49,10 @@ void matrixDrawPrice(float price) {
 }
 
 void matrixDrawPercent(float percent) {
+  static float lastPercent = -1.0;
+  if (percent == lastPercent) return;
+  lastPercent = percent;
+
   byte frame[8][12] = { 0 };
   int pct = constrain((int)round(percent), 0, 99);
   int d1 = pct / 10;

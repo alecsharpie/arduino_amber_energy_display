@@ -1,6 +1,7 @@
 #include "amber_api.h"
 #include "WiFiS3.h"
 #include "config.h"
+#include <ArduinoJson.h>
 
 static float currentPrice = 0.0;
 static float currentRenewables = 0.0;
@@ -12,7 +13,7 @@ bool fetchAmberData() {
   WiFiSSLClient client;
 
   if (!client.connect("api.amber.com.au", 443)) {
-    Serial.println("Connection to Amber API failed");
+    Serial.println("API connection failed");
     return false;
   }
 
@@ -32,71 +33,52 @@ bool fetchAmberData() {
   unsigned long timeout = millis();
   while (!client.available()) {
     if (millis() - timeout > 10000) {
-      Serial.println("API request timed out");
+      Serial.println("API timeout");
       client.stop();
       return false;
     }
   }
 
-  bool headersEnded = false;
-  String line = "";
-  while (client.available() && !headersEnded) {
+  // Skip HTTP headers
+  String line;
+  line.reserve(128);
+  while (client.available()) {
     char c = client.read();
     if (c == '\n') {
-      if (line.length() == 0 || line == "\r") {
-        headersEnded = true;
-      }
+      if (line.length() == 0 || line == "\r") break;
       line = "";
     } else {
       line += c;
     }
   }
 
-  String body = "";
-  while (client.available()) {
-    char c = client.read();
-    body += c;
-  }
+  // Parse JSON directly from the stream (avoids storing full body in RAM)
+  JsonDocument doc;
+  DeserializationError err = deserializeJson(doc, client);
   client.stop();
 
-  Serial.println("API Response:");
-  Serial.println(body);
-
-  int generalIndex = body.indexOf("\"channelType\":\"general\"");
-  if (generalIndex == -1) {
-    Serial.println("Error: No general channel found");
+  if (err) {
+    Serial.print("JSON error: ");
+    Serial.println(err.c_str());
     return false;
   }
 
-  int perKwhIndex = body.indexOf("\"perKwh\":");
-  if (perKwhIndex == -1) {
-    Serial.println("Error: No perKwh field found");
-    return false;
+  // Find the "general" channel in the response array
+  for (JsonObject obj : doc.as<JsonArray>()) {
+    if (obj["channelType"] == "general") {
+      float priceCents = obj["perKwh"];
+      currentPrice = priceCents / 100.0;
+      currentRenewables = obj["renewables"];
+
+      Serial.print("Price: ");
+      Serial.print(priceCents);
+      Serial.print("c/kWh  Renewables: ");
+      Serial.print(currentRenewables);
+      Serial.println("%");
+      return true;
+    }
   }
-  int valueStart = perKwhIndex + 9;
-  int valueEnd = body.indexOf(",", valueStart);
-  if (valueEnd == -1) valueEnd = body.indexOf("}", valueStart);
-  float priceCents = body.substring(valueStart, valueEnd).toFloat();
-  currentPrice = priceCents / 100.0;
 
-  int renewIndex = body.indexOf("\"renewables\":");
-  if (renewIndex == -1) {
-    Serial.println("Error: No renewables field found");
-    return false;
-  }
-  valueStart = renewIndex + 13;
-  valueEnd = body.indexOf(",", valueStart);
-  if (valueEnd == -1) valueEnd = body.indexOf("}", valueStart);
-  currentRenewables = body.substring(valueStart, valueEnd).toFloat();
-
-  Serial.print("Price: ");
-  Serial.print(priceCents);
-  Serial.print(" c/kWh ($");
-  Serial.print(currentPrice, 2);
-  Serial.println(")");
-  Serial.print("Renewables: ");
-  Serial.print(currentRenewables);
-  Serial.println("%");
-
-  return true;
+  Serial.println("No general channel found");
+  return false;
 }

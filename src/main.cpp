@@ -1,9 +1,5 @@
-// ============================================================
-// AmberOrb - Modular Amber Electric Display
-// ============================================================
-// Module selection is now in platformio.ini via build_flags
-// (e.g. -D USE_LAVA_LAMP). No need to edit this file.
-// ============================================================
+// AmberOrb - Amber Electric price display for Arduino Uno R4 WiFi
+// Module selection via build_flags in platformio.ini (e.g. -D USE_LAVA_LAMP)
 
 #include <Arduino.h>
 #include "WiFiS3.h"
@@ -27,21 +23,41 @@
 #endif
 
 unsigned long lastFetch = 0;
-const unsigned long FETCH_INTERVAL = 300000;
+unsigned long lastWifiCheck = 0;
 
-// Used for cycling matrix displays when both sun and digits are on
+#ifdef DEV_MODE
+  const unsigned long FETCH_INTERVAL = 60000;
+#else
+  const unsigned long FETCH_INTERVAL = 30000;
+  static int lastFetchedSlot = -1;
+#endif
+
 #ifdef USE_MATRIX_SUN
 #ifdef USE_MATRIX_DIGITS
   unsigned long lastDisplaySwitch = 0;
-  int displayPhase = 0;  // 0=sun, 1=price, 2=percent
+  int displayPhase = 0;
 #endif
 #endif
+
+bool connectWiFi(unsigned long timeoutMs) {
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  unsigned long start = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - start < timeoutMs) {
+    delay(500);
+  }
+  return WiFi.status() == WL_CONNECTED;
+}
+
+void onFetchSuccess() {
+  #ifdef USE_MATRIX_SUN
+    matrixSunSetTarget(getRenewables());
+  #endif
+}
 
 void setup() {
   Serial.begin(115200);
   delay(2000);
 
-  // --- Initialise enabled modules ---
   #ifdef USE_LAVA_LAMP
     lavaLampBegin();
   #endif
@@ -50,7 +66,6 @@ void setup() {
     matrixSunBegin();
   #endif
 
-  // Only begin digits if sun isn't active (they share hardware)
   #ifdef USE_MATRIX_DIGITS
   #ifndef USE_MATRIX_SUN
     matrixDigitsBegin();
@@ -61,45 +76,70 @@ void setup() {
     trafficLedsBegin();
   #endif
 
-  // --- Connect to WiFi ---
   Serial.print("Connecting to WiFi");
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+  if (connectWiFi(30000)) {
+    Serial.println("\nConnected!");
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println("\nWiFi connect failed, will retry in loop");
   }
-  delay(2000);
-  Serial.println("\nConnected!");
-  Serial.println(WiFi.localIP());
 
-  // --- Startup animations ---
   #ifdef USE_MATRIX_SUN
     matrixSunStartupAnimation();
   #endif
 
-  // --- Fetch initial data ---
   if (fetchAmberData()) {
-    #ifdef USE_MATRIX_SUN
-      matrixSunSetTarget(getRenewables());
-    #endif
+    onFetchSuccess();
   }
   lastFetch = millis();
 }
 
 void loop() {
-  // --- Fetch new data every 5 minutes ---
-  if (millis() - lastFetch > FETCH_INTERVAL) {
-    Serial.println("Fetching new data...");
-    if (fetchAmberData()) {
-      #ifdef USE_MATRIX_SUN
-        matrixSunSetTarget(getRenewables());
-      #endif
+  // Throttled WiFi check (every 5s instead of every 30ms)
+  if (millis() - lastWifiCheck > 5000) {
+    lastWifiCheck = millis();
+    if (WiFi.status() != WL_CONNECTED) {
+      Serial.println("WiFi disconnected, reconnecting...");
+      if (connectWiFi(10000)) {
+        Serial.println("WiFi reconnected!");
+      } else {
+        Serial.println("WiFi reconnect failed, will retry");
+      }
     }
-    lastFetch = millis();
   }
 
-  // --- Update each enabled module ---
+  // Fetch price data
+  bool shouldFetch = false;
 
+  #ifdef DEV_MODE
+    shouldFetch = (millis() - lastFetch > FETCH_INTERVAL);
+  #else
+    if (millis() - lastFetch > FETCH_INTERVAL) {
+      unsigned long epoch = WiFi.getTime();
+      if (epoch > 0) {
+        int currentSlot = ((epoch / 60) % 60) / 30;  // 0 = :00-:29, 1 = :30-:59
+        if (currentSlot != lastFetchedSlot) {
+          shouldFetch = true;
+        }
+      }
+      lastFetch = millis();
+    }
+  #endif
+
+  if (shouldFetch) {
+    Serial.println("Fetching price data...");
+    if (fetchAmberData()) {
+      onFetchSuccess();
+      #ifndef DEV_MODE
+        lastFetchedSlot = ((WiFi.getTime() / 60) % 60) / 30;
+      #endif
+    }
+    #ifdef DEV_MODE
+      lastFetch = millis();
+    #endif
+  }
+
+  // Update display modules
   #ifdef USE_LAVA_LAMP
     lavaLampUpdate(getPrice());
   #endif
@@ -108,8 +148,6 @@ void loop() {
     trafficLedsUpdate(getRenewables());
   #endif
 
-  // --- Matrix display logic ---
-  // If both sun and digits are enabled, cycle between them
   #ifdef USE_MATRIX_SUN
   #ifdef USE_MATRIX_DIGITS
     if (millis() - lastDisplaySwitch > 4000) {
@@ -124,12 +162,10 @@ void loop() {
       matrixDrawPercent(getRenewables());
     }
   #else
-    // Just sun, no digits
     matrixSunUpdate();
   #endif
   #else
   #ifdef USE_MATRIX_DIGITS
-    // Just digits, no sun — alternate price and percent
     static unsigned long lastDigitSwitch = 0;
     static bool showPrice = true;
     if (millis() - lastDigitSwitch > 4000) {

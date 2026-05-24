@@ -15,8 +15,14 @@ void lavaLampBegin() {
 }
 
 void lavaLampUpdate(float priceDollars) {
-  LavaColor c = lavaColorForPrice(priceDollars);
-  strip.setBrightness(c.brightness);
+  // Cache color lookup — price only changes every 30 minutes
+  static float lastPrice = -1.0;
+  static LavaColor c = {0, 255, 0, 18, 1.0};
+  if (priceDollars != lastPrice) {
+    c = lavaColorForPrice(priceDollars);
+    strip.setBrightness(c.brightness);
+    lastPrice = priceDollars;
+  }
 
   static float phase = 0.0;
   static float cometPos = 0.0;
@@ -40,19 +46,24 @@ void lavaLampUpdate(float priceDollars) {
     strip.setPixelColor(head, strip.Color(c.r, c.g, c.b));
   } else {
     // GLOW MODE — soft floating blob for normal prices
-    phase += 0.004;
+    phase += 0.007;
     float glowPos = (NUM_LEDS / 2.0) + sin(phase) * (NUM_LEDS / 2.0 - 1.0);
 
     for (int i = 0; i < NUM_LEDS; i++) {
       float dist = fabs(glowPos - i);
       float spread = 4.0;
       float brightness = exp(-(dist * dist) / (2.0 * spread * spread));
-      // No ambient floor — distant LEDs go fully off for contrast
 
-      int r = (int)(c.r * brightness);
-      int g = (int)(c.g * brightness);
-      int b = (int)(c.b * brightness);
-      strip.setPixelColor(i, strip.Color(r, g, b));
+      // Cut off very dim pixels to avoid color shift from integer truncation
+      // (e.g. yellow {255,150,0} at low brightness becomes reddish)
+      if (brightness < 0.10) {
+        strip.setPixelColor(i, 0);
+      } else {
+        int r = (int)(c.r * brightness);
+        int g = (int)(c.g * brightness);
+        int b = (int)(c.b * brightness);
+        strip.setPixelColor(i, strip.Color(r, g, b));
+      }
     }
   }
 
