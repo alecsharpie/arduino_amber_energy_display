@@ -6,13 +6,13 @@ A light-up display orb for the Arduino Uno R4 WiFi that shows real-time energy p
 
 The orb changes colour based on your electricity price:
 
-| Price | Colour | Meaning |
-|-------|--------|---------|
-| < 27c/kWh | Green | Cheap - use energy freely |
-| 27-36c/kWh | Yellow | Moderate |
-| 37-47c/kWh | Orange | Getting pricey |
-| 48-99c/kWh | Red | Expensive |
-| $1+/kWh | Bright Red | Very expensive (brightness cranked up) |
+| Price | Colour | Animation |
+|-------|--------|-----------|
+| < 27c/kWh | Green | Floating glow |
+| 27-36c/kWh | Yellow | Floating glow |
+| 37-46c/kWh | Orange | Floating glow |
+| 47-56c/kWh | Red | Floating glow |
+| 57c+/kWh | Red | Fast trailing comet |
 
 ## Hardware
 
@@ -84,7 +84,8 @@ build_flags =
 | Command | What it does |
 |---------|-------------|
 | `pio run` | Compile |
-| `pio run -t upload` | Compile and flash to board |
+| `pio run -t upload` | Compile and flash to board (production) |
+| `pio run -e dev -t upload` | Flash dev mode (fetches every 60s, verbose logging) |
 | `pio test -e native` | Run unit tests (on your laptop, no hardware needed) |
 | `pio run -e test_colors -t upload` | Flash the colour test sketch |
 | `pio device monitor` | Serial monitor (run in a separate terminal) |
@@ -92,8 +93,11 @@ build_flags =
 ### Typical workflow
 
 ```bash
-# Edit code, then compile + flash
+# Edit code, then compile + flash (production: fetches on half-hour boundaries)
 pio run -t upload
+
+# Or use dev mode for testing (fetches every 60s with timestamps)
+pio run -e dev -t upload
 
 # Watch serial output in another terminal
 pio device monitor

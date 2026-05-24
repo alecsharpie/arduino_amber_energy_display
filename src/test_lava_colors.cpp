@@ -26,12 +26,12 @@ TestCase tests[] = {
   {0.36, "YELLOW"},
   {0.37, "ORANGE"},
   {0.42, "ORANGE"},
-  {0.47, "ORANGE"},
-  {0.48, "RED"},
-  {0.60, "RED"},
-  {0.99, "RED"},
-  {1.00, "BRIGHT RED"},
-  {2.50, "BRIGHT RED"},
+  {0.46, "ORANGE"},
+  {0.47, "RED"},
+  {0.52, "RED"},
+  {0.56, "RED"},
+  {0.57, "SPIKE (comet)"},
+  {1.00, "SPIKE (comet)"},
 };
 
 const int NUM_TESTS = sizeof(tests) / sizeof(tests[0]);

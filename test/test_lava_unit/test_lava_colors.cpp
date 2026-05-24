@@ -48,7 +48,7 @@ void test_yellow_at_36c(void) {
   assertColor(0.36, 255, 150, 0, 30, 1.0);
 }
 
-// --- ORANGE band: 37c–47c ---
+// --- ORANGE band: 37c–46c ---
 
 void test_orange_at_37c(void) {
   assertColor(0.37, 255, 50, 0, 30, 1.0);
@@ -58,32 +58,32 @@ void test_orange_at_42c(void) {
   assertColor(0.42, 255, 50, 0, 30, 1.0);
 }
 
-void test_orange_at_47c(void) {
-  assertColor(0.47, 255, 50, 0, 30, 1.0);
+void test_orange_at_46c(void) {
+  assertColor(0.46, 255, 50, 0, 30, 1.0);
 }
 
-// --- RED band: 48c–99c ---
+// --- RED band: 47c–56c ---
 
-void test_red_at_48c(void) {
-  assertColor(0.48, 255, 0, 0, 30, 1.0);
+void test_red_at_47c(void) {
+  assertColor(0.47, 255, 0, 0, 30, 1.0);
 }
 
-void test_red_at_60c(void) {
-  assertColor(0.60, 255, 0, 0, 30, 1.0);
+void test_red_at_52c(void) {
+  assertColor(0.52, 255, 0, 0, 30, 1.0);
 }
 
-void test_red_at_99c(void) {
-  assertColor(0.99, 255, 0, 0, 30, 1.0);
+void test_red_at_56c(void) {
+  assertColor(0.56, 255, 0, 0, 30, 1.0);
 }
 
-// --- FAST RED band: >= $1 (same colour, fast animation) ---
+// --- SPIKE band: >= 57c (same colour, fast comet) ---
 
-void test_bright_red_at_1_dollar(void) {
+void test_spike_at_57c(void) {
+  assertColor(0.57, 255, 0, 0, 30, 8.0);
+}
+
+void test_spike_at_1_dollar(void) {
   assertColor(1.00, 255, 0, 0, 30, 8.0);
-}
-
-void test_bright_red_at_2_50(void) {
-  assertColor(2.50, 255, 0, 0, 30, 8.0);
 }
 
 int main(void) {
@@ -99,14 +99,14 @@ int main(void) {
 
   RUN_TEST(test_orange_at_37c);
   RUN_TEST(test_orange_at_42c);
-  RUN_TEST(test_orange_at_47c);
+  RUN_TEST(test_orange_at_46c);
 
-  RUN_TEST(test_red_at_48c);
-  RUN_TEST(test_red_at_60c);
-  RUN_TEST(test_red_at_99c);
+  RUN_TEST(test_red_at_47c);
+  RUN_TEST(test_red_at_52c);
+  RUN_TEST(test_red_at_56c);
 
-  RUN_TEST(test_bright_red_at_1_dollar);
-  RUN_TEST(test_bright_red_at_2_50);
+  RUN_TEST(test_spike_at_57c);
+  RUN_TEST(test_spike_at_1_dollar);
 
   return UNITY_END();
 }

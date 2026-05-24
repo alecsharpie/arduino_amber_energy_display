@@ -54,9 +54,25 @@ void onFetchSuccess() {
   #endif
 }
 
+// Print uptime as HH:MM:SS prefix for dev logging
+void printTimestamp() {
+  unsigned long s = millis() / 1000;
+  unsigned int h = s / 3600;
+  unsigned int m = (s % 3600) / 60;
+  unsigned int sec = s % 60;
+  char buf[12];
+  sprintf(buf, "[%02u:%02u:%02u] ", h, m, sec);
+  Serial.print(buf);
+}
+
 void setup() {
   Serial.begin(115200);
   delay(2000);
+
+  #ifdef DEV_MODE
+    printTimestamp();
+    Serial.println("DEV_MODE active — fetching every 60s");
+  #endif
 
   #ifdef USE_LAVA_LAMP
     lavaLampBegin();
@@ -88,6 +104,8 @@ void setup() {
     matrixSunStartupAnimation();
   #endif
 
+  printTimestamp();
+  Serial.println("Initial fetch...");
   if (fetchAmberData()) {
     onFetchSuccess();
   }
@@ -95,31 +113,39 @@ void setup() {
 }
 
 void loop() {
-  // Throttled WiFi check (every 5s instead of every 30ms)
+  // Throttled WiFi check
   if (millis() - lastWifiCheck > 5000) {
     lastWifiCheck = millis();
     if (WiFi.status() != WL_CONNECTED) {
+      printTimestamp();
       Serial.println("WiFi disconnected, reconnecting...");
       if (connectWiFi(10000)) {
+        printTimestamp();
         Serial.println("WiFi reconnected!");
-      } else {
-        Serial.println("WiFi reconnect failed, will retry");
       }
     }
   }
+
+  // Retry faster (every 10s) if we've never had a successful fetch
+  unsigned long interval = FETCH_INTERVAL;
+  if (!hasPriceData()) interval = 10000;
 
   // Fetch price data
   bool shouldFetch = false;
 
   #ifdef DEV_MODE
-    shouldFetch = (millis() - lastFetch > FETCH_INTERVAL);
+    shouldFetch = (millis() - lastFetch > interval);
   #else
-    if (millis() - lastFetch > FETCH_INTERVAL) {
-      unsigned long epoch = WiFi.getTime();
-      if (epoch > 0) {
-        int currentSlot = ((epoch / 60) % 60) / 30;  // 0 = :00-:29, 1 = :30-:59
-        if (currentSlot != lastFetchedSlot) {
-          shouldFetch = true;
+    if (millis() - lastFetch > interval) {
+      if (!hasPriceData()) {
+        shouldFetch = true;  // no data yet, just fetch
+      } else {
+        unsigned long epoch = WiFi.getTime();
+        if (epoch > 0) {
+          int currentSlot = ((epoch / 60) % 60) / 30;
+          if (currentSlot != lastFetchedSlot) {
+            shouldFetch = true;
+          }
         }
       }
       lastFetch = millis();
@@ -127,19 +153,45 @@ void loop() {
   #endif
 
   if (shouldFetch) {
-    Serial.println("Fetching price data...");
+    printTimestamp();
+    Serial.println("Fetching...");
     if (fetchAmberData()) {
       onFetchSuccess();
-      #ifndef DEV_MODE
+      #ifdef DEV_MODE
+        #ifdef USE_LAVA_LAMP
+          float p = getPrice();
+          LavaColor lc = lavaColorForPrice(p);
+          printTimestamp();
+          Serial.print("[COLOR] $");
+          Serial.print(p, 6);
+          Serial.print(" (");
+          Serial.print(p * 100.0, 4);
+          Serial.print("c) -> R=");
+          Serial.print(lc.r);
+          Serial.print(" G=");
+          Serial.print(lc.g);
+          Serial.print(" B=");
+          Serial.print(lc.b);
+          Serial.print(" bright=");
+          Serial.print(lc.brightness);
+          Serial.print(" spd=");
+          Serial.println(lc.speed);
+        #endif
+      #else
         lastFetchedSlot = ((WiFi.getTime() / 60) % 60) / 30;
       #endif
+    } else {
+      printTimestamp();
+      Serial.println("Fetch FAILED");
     }
     #ifdef DEV_MODE
       lastFetch = millis();
     #endif
   }
 
-  // Update display modules
+  // Don't update displays until we have price data (LEDs stay off)
+  if (!hasPriceData()) { delay(30); return; }
+
   #ifdef USE_LAVA_LAMP
     lavaLampUpdate(getPrice());
   #endif

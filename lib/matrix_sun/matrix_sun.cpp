@@ -31,6 +31,9 @@ void matrixSunBegin() {
 
 int matrixSunUpdate() {
   if (currentStage == targetStage) return currentStage;
+  static unsigned long lastStep = 0;
+  if (millis() - lastStep < 400) return currentStage;  // one step every 400ms
+  lastStep = millis();
   if (currentStage < targetStage) currentStage++;
   else currentStage--;
   drawSun(currentStage);

@@ -11,18 +11,19 @@ struct LavaColor {
 };
 
 inline LavaColor lavaColorForPrice(float priceDollars) {
-  float priceCents = priceDollars * 100.0;
+  // Round to nearest cent to match the Amber app's displayed price
+  int priceCents = (int)(priceDollars * 100.0 + 0.5);
 
   if (priceCents < 27) {
     return {0, 255, 0, 18, 1.0};      // GREEN  — cheap, calm glow
   } else if (priceCents < 37) {
     return {255, 150, 0, 30, 1.0};    // YELLOW — moderate
-  } else if (priceCents < 48) {
+  } else if (priceCents < 47) {
     return {255, 50, 0, 30, 1.0};     // ORANGE — getting pricey
-  } else if (priceCents < 100) {
+  } else if (priceCents < 57) {
     return {255, 0, 0, 30, 1.0};      // RED    — expensive
   } else {
-    return {255, 0, 0, 30, 8.0};      // RED    — very expensive, fast comet!
+    return {255, 0, 0, 30, 8.0};      // RED    — price spike, fast comet!
   }
 }
 
